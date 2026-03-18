@@ -16,7 +16,7 @@ BOARD_RULES = """\
 Output EXACTLY 3 lines. Each line is AT MOST 15 characters. ALL CAPS.
 No punctuation except spaces, hyphens, and exclamation marks.
 Output only the 3 lines — no labels, quotes, or explanation.
-Center each line by padding with spaces on both sides so the text appears balanced on the board.
+Do not add leading or trailing spaces — write only the content.
 
 The ruler below shows exactly 15 characters — never exceed it:
 |||||||||||||||
