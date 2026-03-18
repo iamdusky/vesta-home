@@ -13,11 +13,13 @@ _CHAR_MAP: dict[str, int] = {
 
 
 def _text_to_chars(text: str) -> list[list[int]]:
-    """Convert newline-separated text into a 3×15 character-code array."""
+    """Convert newline-separated text into a 3×15 character-code array, centered."""
     lines = (text.upper() + "\n\n").split("\n")[:3]
     rows = []
     for line in lines:
-        row = [_CHAR_MAP.get(ch, 0) for ch in line[:15]]
+        line = line.strip()[:15]
+        pad  = (15 - len(line)) // 2
+        row  = [0] * pad + [_CHAR_MAP.get(ch, 0) for ch in line]
         row += [0] * (15 - len(row))
         rows.append(row)
     return rows
