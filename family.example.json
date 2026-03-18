@@ -35,6 +35,7 @@
       "enabled": true,
       "interval_hours": 6,
       "jitter_hours": 3,
+      "window": ["08:00", "17:00"],
       "prompt": "Write an inspiring creativity or innovation message for a flip-board. Use very short words only. Each line max 15 chars. Examples: THINK DIFFERENT / CREATE TODAY / BUILD SOMETHING / STAY CURIOUS. Punchy and motivating."
     },
     {
