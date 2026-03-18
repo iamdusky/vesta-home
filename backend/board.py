@@ -4,10 +4,13 @@ Owns the VestaboardClient, the asyncio queue, and the background worker.
 """
 
 import asyncio
+import logging
 import time
 import uuid
 
 from vestaboard import VestaboardClient
+
+logger = logging.getLogger(__name__)
 
 RATE_LIMIT = 15  # seconds between sends
 
@@ -34,9 +37,11 @@ async def worker():
                 await client.send(job["text"])
             _last_send = time.monotonic()
             job["status"] = "sent"
+            logger.info("Board send OK — %s", job.get("text", "[characters]")[:40])
         except Exception as e:
             job["status"] = "failed"
             job["error"]  = str(e)
+            logger.error("Board send FAILED — %s", e)
         finally:
             _queue.task_done()
 

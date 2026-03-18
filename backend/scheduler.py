@@ -5,6 +5,7 @@ Jobs are rebuilt whenever the family config changes.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import pytz
@@ -17,6 +18,8 @@ import family as fam
 import messages
 from tools import _get_plex_recently_added
 
+logger = logging.getLogger(__name__)
+
 scheduler = AsyncIOScheduler()
 
 
@@ -26,6 +29,7 @@ def _tz(family: dict) -> pytz.BaseTzInfo:
 
 async def _run(msg_fn, *args):
     """Generate a message and enqueue it on the board. Handles text or character arrays."""
+    logger.info("Scheduler firing: %s", msg_fn.__name__)
     result = await msg_fn(*args)
     if isinstance(result, list):
         await board.enqueue_characters(result)
@@ -137,6 +141,7 @@ async def _from_prompt(prompt: str, window=None, tz=None):
     if window:
         now = datetime.now(tz or pytz.utc).strftime("%H:%M")
         if not (window[0] <= now < window[1]):
+            logger.info("Skipping random message — outside window %s–%s (now %s)", window[0], window[1], now)
             return
     text = await messages.from_prompt(prompt)
     await board.enqueue(text)
