@@ -67,16 +67,22 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 ## Git workflow
 `main` is protected — never push directly. All changes go through PRs.
 
-```bash
-# Start a new feature
-git checkout -b my-feature
-
-# Push and open a PR
-git push -u origin my-feature
-gh pr create
+```
+feature branch → PR → main → delete remote branch
 ```
 
-Default working branch is `develop`. Use short-lived feature branches off `develop` for changes, then PR into `develop`. When ready to release, PR `develop` → `main`.
+```bash
+# Start a new feature (always branch from main)
+git fetch origin && git checkout -b feature/my-feature origin/main
 
+# Push and open a PR
+git push -u origin feature/my-feature
+gh pr create --base main
+
+# After merging, delete the remote branch
+gh pr merge --merge --admin
+git push origin --delete feature/my-feature
+git checkout main && git pull
+```
 ## Frontend
 Single file: `frontend/index.html`. No framework, no build step. The FastAPI app serves it as static files. Edit and reload — uvicorn's `--reload` picks up Python changes; browser refresh picks up HTML/JS changes.
