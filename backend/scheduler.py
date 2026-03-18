@@ -178,10 +178,24 @@ def upcoming(limit: int = 8) -> list[dict]:
         next_run = job.next_run_time
         if next_run is None:
             continue
+        # Check if this is a windowed job that will skip at next_run
+        will_skip = False
+        window    = None
+        if getattr(job.func, "__name__", "") == "_from_prompt" and len(job.args) > 1:
+            window = job.args[1]
+            if window:
+                next_time = next_run.astimezone(pytz.utc).strftime("%H:%M")
+                # Convert to job's timezone for accurate comparison
+                tz_info = job.args[2] if len(job.args) > 2 else pytz.utc
+                next_time = next_run.astimezone(tz_info).strftime("%H:%M")
+                will_skip = not (window[0] <= next_time < window[1])
+
         result.append({
-            "id":       job.id,
-            "name":     job.name,
-            "next_run": next_run.isoformat(),
+            "id":        job.id,
+            "name":      job.name,
+            "next_run":  next_run.isoformat(),
+            "will_skip": will_skip,
+            "window":    window,
         })
     result.sort(key=lambda x: x["next_run"])
     return result[:limit]
