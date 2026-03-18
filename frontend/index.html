@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>VESTA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:       #0b0b0b;
+      --bg2:      #111111;
+      --bg3:      #1a1a1a;
+      --amber:    #f5a623;
+      --amber-dim:#9e6c14;
+      --white:    #f0ece3;
+      --muted:    #555555;
+      --border:   #222222;
+      --red:      #c0392b;
+      --green:    #27ae60;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-disp: 'Bebas Neue', sans-serif;
+      --radius: 2px;
+      --header-h: 52px;
+      --input-h:  64px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .board-icon {
+      display: grid;
+      grid-template-columns: repeat(5, 6px);
+      grid-template-rows: repeat(3, 5px);
+      gap: 2px;
+    }
+
+    .board-icon span {
+      background: var(--amber-dim);
+      border-radius: 1px;
+      transition: background 0.3s;
+    }
+
+    .board-icon span.lit { background: var(--amber); }
+
+    .wordmark {
+      font-family: var(--font-disp);
+      font-size: 28px;
+      letter-spacing: 0.12em;
+      color: var(--amber);
+      line-height: 1;
+    }
+
+    .model-badge {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.4s;
+    }
+    .status-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.loading { background: var(--amber); box-shadow: 0 0 6px var(--amber); animation: pulse 1s infinite; }
+    .status-dot.error   { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── FAMILY PANEL ── */
+    #panel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    #panel-overlay.open { opacity: 1; pointer-events: all; }
+
+    #family-panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-radius: 12px 12px 0 0;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #family-panel.open { transform: translateY(0); }
+
+    .panel-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 12px auto 0;
+      flex-shrink: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 10px;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: var(--font-disp);
+      font-size: 20px;
+      letter-spacing: 0.08em;
+      color: var(--amber);
+    }
+
+    .panel-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .panel-close:hover { color: var(--white); }
+
+    .panel-body {
+      overflow-y: auto;
+      padding: 0 16px 32px;
+      flex: 1;
+    }
+
+    .panel-section {
+      margin-bottom: 24px;
+    }
+
+    .panel-section-label {
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Quick send grid */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .quick-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      cursor: pointer;
+      color: var(--white);
+      font-family: var(--font-mono);
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .quick-btn:hover { border-color: var(--amber-dim); background: #1e1e1e; }
+    .quick-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .quick-btn-icon { font-size: 18px; line-height: 1; }
+    .quick-btn-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--white); }
+    .quick-btn-sub { font-size: 10px; color: var(--muted); }
+
+    /* Schedule list */
+    .schedule-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .schedule-item:last-child { border-bottom: none; }
+    .schedule-name { font-size: 12px; color: var(--white); }
+    .schedule-time { font-size: 11px; color: var(--amber); letter-spacing: 0.04em; }
+
+    /* Birthday list */
+    .birthday-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .birthday-item:last-child { border-bottom: none; }
+    .birthday-name { color: var(--white); }
+    .birthday-when { color: var(--muted); }
+    .birthday-when.soon { color: var(--amber); }
+
+    /* ── CHAT AREA ── */
+    #chat {
+      position: fixed;
+      top: var(--header-h);
+      bottom: var(--input-h);
+      left: 0; right: 0;
+      overflow-y: auto;
+      padding: 20px 0 8px;
+      scroll-behavior: smooth;
+    }
+
+    #chat::-webkit-scrollbar { width: 3px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg-wrap {
+      display: flex;
+      padding: 4px 16px;
+      animation: fadeSlide 0.2s ease both;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-wrap.user  { justify-content: flex-end; }
+    .msg-wrap.ai    { justify-content: flex-start; }
+
+    .bubble {
+      max-width: min(72%, 520px);
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      position: relative;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .msg-wrap.user .bubble {
+      background: var(--bg3);
+      border: 1px solid #2a2a2a;
+      color: var(--white);
+      font-size: 12.5px;
+    }
+
+    .msg-wrap.ai .bubble {
+      background: var(--bg2);
+      border: 1px solid #1e1e1e;
+      border-left: 2px solid var(--amber-dim);
+      color: var(--white);
+      font-size: 12.5px;
+    }
+
+    .bubble-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ts {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .send-board-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: none;
+      border: 1px solid var(--amber-dim);
+      color: var(--amber);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .send-board-btn:hover {
+      background: rgba(245,166,35,0.1);
+      border-color: var(--amber);
+    }
+
+    .send-board-btn svg { width: 11px; height: 11px; }
+
+    /* ── THINKING INDICATOR ── */
+    .thinking-wrap {
+      display: flex;
+      padding: 6px 16px;
+    }
+
+    .thinking {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg2);
+      border: 1px solid #1e1e1e;
+      border-left: 2px solid var(--amber-dim);
+      padding: 8px 12px;
+      border-radius: var(--radius);
+    }
+
+    .flip-char {
+      display: inline-block;
+      width: 8px;
+      height: 12px;
+      background: var(--amber-dim);
+      border-radius: 1px;
+      animation: flip 0.6s infinite;
+    }
+
+    .flip-char:nth-child(2) { animation-delay: 0.2s; }
+    .flip-char:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes flip {
+      0%,100% { transform: scaleY(1); background: var(--amber-dim); }
+      50%      { transform: scaleY(0.1); background: var(--amber); }
+    }
+
+    .thinking-label {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── BOARD PREVIEW ── */
+    .board-preview {
+      margin-top: 10px;
+      background: #0e0e0e;
+      border: 1px solid #2a2a2a;
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      overflow: hidden;
+    }
+
+    .board-preview-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(15, 1fr);
+      grid-template-rows: repeat(3, 14px);
+      gap: 2px;
+      max-width: 300px;
+    }
+
+    .board-cell {
+      background: #1a1000;
+      border-radius: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: var(--amber);
+      font-family: var(--font-mono);
+      font-weight: 500;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .board-cell.active {
+      background: #2d1f00;
+      color: var(--amber);
+    }
+
+    /* ── INPUT BAR ── */
+    #input-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: var(--input-h);
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    #user-input {
+      flex: 1;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 10px 12px;
+      outline: none;
+      resize: none;
+      height: 42px;
+      transition: border-color 0.15s;
+      line-height: 1.4;
+    }
+
+    #user-input::placeholder { color: var(--muted); }
+
+    #user-input:focus {
+      border-color: var(--amber-dim);
+    }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover { border-color: #333; color: var(--white); }
+
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    #mic-btn.recording {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(192,57,43,0.1);
+      animation: pulse 1s infinite;
+    }
+
+    #send-btn {
+      border-color: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    #send-btn:hover {
+      background: rgba(245,166,35,0.1);
+      border-color: var(--amber);
+    }
+
+    #send-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--input-h) + 12px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--bg3);
+      border: 1px solid var(--amber-dim);
+      color: var(--amber);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap;
+      z-index: 200;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── EMPTY STATE ── */
+    #empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 16px;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .empty-grid {
+      display: grid;
+      grid-template-columns: repeat(15, 10px);
+      grid-template-rows: repeat(3, 9px);
+      gap: 3px;
+      opacity: 0.4;
+    }
+
+    .empty-cell {
+      background: var(--bg3);
+      border-radius: 1px;
+    }
+
+    .empty-hint {
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* ── SCROLLBAR CHROME ── */
+    * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="board-icon" id="board-icon">
+      <span class="lit"></span><span></span><span class="lit"></span><span></span><span class="lit"></span>
+      <span></span><span class="lit"></span><span></span><span class="lit"></span><span></span>
+      <span class="lit"></span><span></span><span class="lit"></span><span></span><span class="lit"></span>
+    </div>
+    <div>
+      <div class="wordmark">VESTA</div>
+      <div class="model-badge" id="model-badge">loading model...</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="status-dot" id="status-dot"></div>
+    <button class="icon-btn" id="panel-btn" title="Family" style="width:34px;height:34px;border-color:transparent">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- FAMILY PANEL -->
+<div id="panel-overlay"></div>
+<div id="family-panel">
+  <div class="panel-handle"></div>
+  <div class="panel-header">
+    <div class="panel-title">FAMILY</div>
+    <button class="panel-close" id="panel-close">✕</button>
+  </div>
+  <div class="panel-body">
+
+    <div class="panel-section">
+      <div class="panel-section-label">Quick Send</div>
+      <div class="quick-grid">
+        <button class="quick-btn" data-type="morning">
+          <span class="quick-btn-icon">🌅</span>
+          <span class="quick-btn-label">Good Morning</span>
+          <span class="quick-btn-sub" id="qs-morning-time">—</span>
+        </button>
+        <button class="quick-btn" data-type="dinner">
+          <span class="quick-btn-icon">🍽</span>
+          <span class="quick-btn-label">Dinner Idea</span>
+          <span class="quick-btn-sub" id="qs-dinner-time">—</span>
+        </button>
+        <button class="quick-btn" data-type="homework">
+          <span class="quick-btn-icon">📚</span>
+          <span class="quick-btn-label">Homework</span>
+          <span class="quick-btn-sub" id="qs-homework-time">—</span>
+        </button>
+        <button class="quick-btn" data-type="bedtime">
+          <span class="quick-btn-icon">🌙</span>
+          <span class="quick-btn-label">Bedtime</span>
+          <span class="quick-btn-sub" id="qs-bedtime-time">—</span>
+        </button>
+        <button class="quick-btn" data-type="plex" style="grid-column:1/-1">
+          <span class="quick-btn-icon">🎬</span>
+          <span class="quick-btn-label">What to Watch</span>
+          <span class="quick-btn-sub">Recently added on Plex</span>
+        </button>
+        <button class="quick-btn" data-type="dad_joke">
+          <span class="quick-btn-icon">😄</span>
+          <span class="quick-btn-label">Dad Joke</span>
+          <span class="quick-btn-sub">Random</span>
+        </button>
+        <button class="quick-btn" data-type="board_art">
+          <span class="quick-btn-icon">🎨</span>
+          <span class="quick-btn-label">Board Art</span>
+          <span class="quick-btn-sub">Color pattern</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-label">Today's Schedule</div>
+      <div id="schedule-list"><span style="color:var(--muted);font-size:11px">Loading...</span></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-section-label">Upcoming Birthdays</div>
+      <div id="birthday-list"><span style="color:var(--muted);font-size:11px">Loading...</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- CHAT -->
+<div id="chat">
+  <div id="empty-state">
+    <div class="empty-grid" id="empty-grid"></div>
+    <div class="empty-hint">Ask anything.<br>Send your answer to the board.</div>
+  </div>
+</div>
+
+<!-- INPUT BAR -->
+<div id="input-bar">
+  <button class="icon-btn" id="mic-btn" title="Voice input">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3"/>
+      <path d="M5 10a7 7 0 0 0 14 0"/>
+      <line x1="12" y1="19" x2="12" y2="22"/>
+      <line x1="9" y1="22" x2="15" y2="22"/>
+    </svg>
+  </button>
+  <textarea id="user-input" placeholder="message..." rows="1"></textarea>
+  <button class="icon-btn" id="send-btn" title="Send">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  </button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const state = {
+  messages: [],        // {role, content}
+  streaming: false,
+  recording: false,
+};
+
+// ── DOM REFS ───────────────────────────────────────────────────────────────
+const chatEl     = document.getElementById('chat');
+const inputEl    = document.getElementById('user-input');
+const sendBtn    = document.getElementById('send-btn');
+const micBtn     = document.getElementById('mic-btn');
+const statusDot  = document.getElementById('status-dot');
+const modelBadge = document.getElementById('model-badge');
+const toastEl    = document.getElementById('toast');
+const emptyState = document.getElementById('empty-state');
+
+// ── EMPTY GRID INIT ────────────────────────────────────────────────────────
+(function buildEmptyGrid() {
+  const g = document.getElementById('empty-grid');
+  for (let i = 0; i < 45; i++) {
+    const c = document.createElement('div');
+    c.className = 'empty-cell';
+    g.appendChild(c);
+  }
+})();
+
+// ── BOARD ICON ANIMATION ───────────────────────────────────────────────────
+(function animateIcon() {
+  const spans = document.querySelectorAll('.board-icon span');
+  setInterval(() => {
+    spans.forEach(s => {
+      s.classList.toggle('lit', Math.random() > 0.5);
+    });
+  }, 900);
+})();
+
+// ── STATUS ─────────────────────────────────────────────────────────────────
+function setStatus(s) {
+  statusDot.className = 'status-dot ' + s;
+}
+
+// ── HEALTH CHECK / MODEL NAME ──────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch('/api/health');
+    if (r.ok) {
+      const d = await r.json();
+      modelBadge.textContent = d.model || 'connected';
+      setStatus('online');
+    } else {
+      setStatus('error');
+      modelBadge.textContent = 'backend error';
+    }
+  } catch {
+    setStatus('error');
+    modelBadge.textContent = 'offline';
+  }
+}
+checkHealth();
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+function showToast(msg, duration = 2500) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastEl._timer);
+  toastEl._timer = setTimeout(() => toastEl.classList.remove('show'), duration);
+}
+
+// ── TIME ───────────────────────────────────────────────────────────────────
+function nowStr() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── BOARD PREVIEW ──────────────────────────────────────────────────────────
+function renderBoardPreview(text) {
+  const clean = text.replace(/[^\x20-\x7E\n]/g, '').toUpperCase();
+  const chars = clean.replace(/\n/g, ' ').split('');
+  const cells = [];
+  for (let i = 0; i < 45; i++) {
+    const ch = chars[i] || '';
+    cells.push({ ch, active: !!ch.trim() });
+  }
+  return cells;
+}
+
+function buildBoardPreviewEl(text) {
+  const wrap = document.createElement('div');
+  wrap.className = 'board-preview';
+  const label = document.createElement('div');
+  label.className = 'board-preview-label';
+  label.textContent = 'Board preview · 15×3';
+  wrap.appendChild(label);
+  const grid = document.createElement('div');
+  grid.className = 'board-grid';
+  const cells = renderBoardPreview(text);
+  cells.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'board-cell' + (c.active ? ' active' : '');
+    el.textContent = c.ch;
+    grid.appendChild(el);
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+// ── RENDER MESSAGE ─────────────────────────────────────────────────────────
+function appendMessage(role, content, streaming = false) {
+  if (emptyState) emptyState.style.display = 'none';
+
+  const wrap = document.createElement('div');
+  wrap.className = `msg-wrap ${role}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+
+  const text = document.createElement('div');
+  text.className = 'bubble-text';
+  text.textContent = content;
+  bubble.appendChild(text);
+
+  if (role === 'ai' && !streaming) {
+    const footer = buildAIFooter(content, bubble, text);
+    bubble.appendChild(footer);
+  }
+
+  wrap.appendChild(bubble);
+  chatEl.appendChild(wrap);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return { wrap, bubble, text };
+}
+
+function buildAIFooter(content, bubble, textEl) {
+  const footer = document.createElement('div');
+  footer.className = 'bubble-footer';
+
+  const ts = document.createElement('span');
+  ts.className = 'ts';
+  ts.textContent = nowStr();
+  footer.appendChild(ts);
+
+  const boardBtn = document.createElement('button');
+  boardBtn.className = 'send-board-btn';
+  boardBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><polyline points="16 2 12 6 8 2"/></svg> Send to board`;
+
+  boardBtn.addEventListener('click', async () => {
+    boardBtn.disabled = true;
+    boardBtn.textContent = 'Formatting...';
+    try {
+      // Step 1: ask LLM to format for 15×3
+      const { formatted } = await formatForBoard(content);
+
+      // Update preview with the actual text that will be sent
+      const existing = bubble.querySelector('.board-preview');
+      const preview = buildBoardPreviewEl(formatted);
+      if (existing) existing.replaceWith(preview);
+      else bubble.insertBefore(preview, footer);
+
+      // Step 2: queue it
+      boardBtn.textContent = 'Queuing...';
+      const { job_id, position, wait_seconds } = await queueForBoard(formatted);
+
+      if (position === 0 && wait_seconds <= 1) {
+        boardBtn.textContent = 'Sending...';
+      } else {
+        boardBtn.textContent = `Queue: ${position + 1} (~${Math.ceil(wait_seconds)}s)`;
+      }
+
+      // Step 3: wait for confirmation
+      await pollBoardJob(job_id, (pos, secs) => {
+        boardBtn.textContent = pos === 0
+          ? 'Sending...'
+          : `Queue: ${pos + 1} (~${Math.ceil(secs)}s)`;
+      });
+
+      boardBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Sent`;
+      showToast('▪▪▪ Sent to board');
+    } catch (e) {
+      boardBtn.textContent = 'Error';
+      setTimeout(() => {
+        boardBtn.disabled = false;
+        boardBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><polyline points="16 2 12 6 8 2"/></svg> Retry`;
+      }, 2000);
+    }
+  });
+
+  footer.appendChild(boardBtn);
+  return footer;
+}
+
+// ── THINKING INDICATOR ─────────────────────────────────────────────────────
+function addThinking() {
+  const wrap = document.createElement('div');
+  wrap.className = 'thinking-wrap';
+  wrap.id = 'thinking';
+  wrap.innerHTML = `
+    <div class="thinking">
+      <span class="flip-char"></span>
+      <span class="flip-char"></span>
+      <span class="flip-char"></span>
+      <span class="thinking-label">Thinking</span>
+    </div>`;
+  chatEl.appendChild(wrap);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+function removeThinking() {
+  const t = document.getElementById('thinking');
+  if (t) t.remove();
+}
+
+// ── SEND TO BOARD ──────────────────────────────────────────────────────────
+async function formatForBoard(text) {
+  const r = await fetch('/api/board-format', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!r.ok) throw new Error('Format failed');
+  return r.json(); // { formatted }
+}
+
+async function queueForBoard(text) {
+  const r = await fetch('/api/send-to-board', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.detail || 'Board error');
+  }
+  return r.json(); // { job_id, position, wait_seconds }
+}
+
+async function pollBoardJob(jobId, onProgress) {
+  while (true) {
+    await new Promise(r => setTimeout(r, 1000));
+    const r = await fetch(`/api/board-status/${jobId}`);
+    if (!r.ok) throw new Error('Job poll failed');
+    const { status, position, wait_seconds, error } = await r.json();
+    if (status === 'sent') return;
+    if (status === 'failed') throw new Error(error || 'Board send failed');
+    onProgress(position, wait_seconds);
+  }
+}
+
+// ── CHAT SUBMIT ────────────────────────────────────────────────────────────
+async function submitChat(userText) {
+  if (!userText.trim() || state.streaming) return;
+
+  state.messages.push({ role: 'user', content: userText });
+  appendMessage('user', userText);
+  inputEl.value = '';
+  autoResize();
+
+  state.streaming = true;
+  sendBtn.disabled = true;
+  setStatus('loading');
+  addThinking();
+
+  let aiContent = '';
+  let aiEl = null;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: state.messages }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    removeThinking();
+    aiEl = appendMessage('ai', '', true);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const d = JSON.parse(payload);
+          if (d.content) {
+            aiContent += d.content;
+            aiEl.text.textContent = aiContent;
+            chatEl.scrollTop = chatEl.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+
+    // Finalize
+    state.messages.push({ role: 'assistant', content: aiContent });
+    // Add footer
+    const footer = buildAIFooter(aiContent, aiEl.bubble, aiEl.text);
+    aiEl.bubble.appendChild(footer);
+
+  } catch (err) {
+    removeThinking();
+    if (aiEl) {
+      aiEl.text.textContent = `[Error: ${err.message}]`;
+      aiEl.text.style.color = 'var(--red)';
+    } else {
+      appendMessage('ai', `[Error: ${err.message}]`);
+    }
+    setStatus('error');
+    setTimeout(() => setStatus('online'), 3000);
+  } finally {
+    state.streaming = false;
+    sendBtn.disabled = false;
+    setStatus('online');
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+}
+
+// ── INPUT HANDLING ─────────────────────────────────────────────────────────
+function autoResize() {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+}
+
+inputEl.addEventListener('input', autoResize);
+
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    submitChat(inputEl.value);
+  }
+});
+
+sendBtn.addEventListener('click', () => submitChat(inputEl.value));
+
+// ── VOICE INPUT ────────────────────────────────────────────────────────────
+(function setupVoice() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    micBtn.style.opacity = '0.25';
+    micBtn.title = 'Voice input not supported in this browser';
+    return;
+  }
+
+  const recog = new SpeechRecognition();
+  recog.continuous = false;
+  recog.interimResults = true;
+  recog.lang = 'en-US';
+
+  let savedInput = '';
+
+  recog.onstart = () => {
+    state.recording = true;
+    micBtn.classList.add('recording');
+    savedInput = inputEl.value;
+  };
+
+  recog.onresult = e => {
+    const transcript = Array.from(e.results)
+      .map(r => r[0].transcript)
+      .join('');
+    inputEl.value = savedInput + transcript;
+    autoResize();
+  };
+
+  recog.onend = () => {
+    state.recording = false;
+    micBtn.classList.remove('recording');
+  };
+
+  recog.onerror = (e) => {
+    state.recording = false;
+    micBtn.classList.remove('recording');
+    if (e.error !== 'aborted') showToast('Mic error: ' + e.error, 2000);
+  };
+
+  micBtn.addEventListener('click', () => {
+    if (state.recording) {
+      recog.stop();
+    } else {
+      recog.start();
+    }
+  });
+})();
+
+// ── FAMILY PANEL ──────────────────────────────────────────────────────────
+(function setupPanel() {
+  const overlay   = document.getElementById('panel-overlay');
+  const panel     = document.getElementById('family-panel');
+  const panelBtn  = document.getElementById('panel-btn');
+  const closeBtn  = document.getElementById('panel-close');
+
+  function openPanel() {
+    overlay.classList.add('open');
+    panel.classList.add('open');
+    loadPanelData();
+  }
+  function closePanel() {
+    overlay.classList.remove('open');
+    panel.classList.remove('open');
+  }
+
+  panelBtn.addEventListener('click', openPanel);
+  closeBtn.addEventListener('click', closePanel);
+  overlay.addEventListener('click', closePanel);
+
+  // ── Load family + schedule data ─────────────────────────────────────────
+  async function loadPanelData() {
+    try {
+      const [familyRes, schedRes] = await Promise.all([
+        fetch('/api/family'),
+        fetch('/api/schedule'),
+      ]);
+      const family   = await familyRes.json();
+      const schedule = await schedRes.json();
+      renderScheduleTimes(family);
+      renderScheduleList(schedule.jobs);
+      renderBirthdays(family.upcoming_birthdays || []);
+    } catch (e) {
+      console.error('Panel load error', e);
+    }
+  }
+
+  function renderScheduleTimes(family) {
+    const s = family.schedule || {};
+    const set = (id, cfg) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = cfg?.enabled ? cfg.time : 'off';
+    };
+    set('qs-morning-time',  s.morning);
+    set('qs-dinner-time',   s.dinner);
+    set('qs-homework-time', s.homework);
+    set('qs-bedtime-time',  s.bedtime);
+  }
+
+  function renderScheduleList(jobs) {
+    const el = document.getElementById('schedule-list');
+    if (!jobs || !jobs.length) {
+      el.innerHTML = '<span style="color:var(--muted);font-size:11px">No upcoming messages today</span>';
+      return;
+    }
+    el.innerHTML = jobs.map(j => {
+      const t = new Date(j.next_run);
+      const timeStr = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `<div class="schedule-item">
+        <span class="schedule-name">${j.name.split(' · ')[0]}</span>
+        <span class="schedule-time">${timeStr}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderBirthdays(birthdays) {
+    const el = document.getElementById('birthday-list');
+    if (!birthdays.length) {
+      el.innerHTML = '<span style="color:var(--muted);font-size:11px">No birthdays this week</span>';
+      return;
+    }
+    el.innerHTML = birthdays.map(b => {
+      const soon = b.days_away <= 1;
+      const when = b.days_away === 0 ? '🎂 Today!'
+                 : b.days_away === 1 ? 'Tomorrow'
+                 : `In ${b.days_away} days`;
+      return `<div class="birthday-item">
+        <span class="birthday-name">${b.name}</span>
+        <span class="birthday-when${soon ? ' soon' : ''}">${when}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Quick send buttons ──────────────────────────────────────────────────
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const type = btn.dataset.type;
+      btn.disabled = true;
+      const label = btn.querySelector('.quick-btn-label');
+      const orig  = label.textContent;
+      label.textContent = 'Sending...';
+
+      try {
+        const r = await fetch('/api/quick-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type }),
+        });
+        if (!r.ok) throw new Error();
+        const { preview, position, wait_seconds } = await r.json();
+        label.textContent = position > 0
+          ? `Queued (~${Math.ceil(wait_seconds)}s)`
+          : 'Queued!';
+        showToast(`▪▪▪ ${orig} queued`);
+
+        // Show preview in chat as a system message
+        appendSystemMessage(`[Board → ${orig}]\n${preview}`);
+        setTimeout(() => {
+          label.textContent = orig;
+          btn.disabled = false;
+        }, 3000);
+      } catch {
+        label.textContent = 'Error';
+        setTimeout(() => { label.textContent = orig; btn.disabled = false; }, 2000);
+      }
+    });
+  });
+
+  function appendSystemMessage(text) {
+    if (emptyState) emptyState.style.display = 'none';
+    const wrap   = document.createElement('div');
+    wrap.className = 'msg-wrap ai';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.style.borderLeftColor = 'var(--muted)';
+    bubble.style.opacity = '0.7';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+    chatEl.appendChild(wrap);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+})();
+</script>
+</body>
+</html>

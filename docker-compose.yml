@@ -1,0 +1,54 @@
+services:
+
+  vllm:
+    profiles: ["llm"]
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    command: >
+      --model ${MODEL:-NousResearch/Hermes-4.3-36B}
+      --port 8000
+      --host 0.0.0.0
+      --max-model-len 8192
+      --enable-auto-tool-choice
+      --tool-call-parser hermes
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  backend:
+    profiles: ["backend"]
+    build:
+      context: .          # project root so Dockerfile can reach frontend/
+      dockerfile: backend/Dockerfile
+    environment:
+      - LLM_BASE_URL=http://vllm:8000/v1
+      - LLM_API_KEY=none
+      - MODEL=${MODEL:-/models/Hermes-4.3-36B-FP8}
+      - VESTABOARD_TOKEN=${VESTABOARD_TOKEN}
+    ports:
+      - "3000:3000"
+    depends_on:
+      vllm:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  hf-cache:

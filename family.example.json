@@ -1,0 +1,49 @@
+{
+  "family_name": "The Smiths",
+  "location": "San Francisco",
+  "timezone": "America/Los_Angeles",
+  "members": [
+    { "name": "Mom",  "birthday": "04-15" },
+    { "name": "Dad",  "birthday": "10-01" },
+    { "name": "Kid1", "birthday": "03-22" },
+    { "name": "Kid2", "birthday": "08-22" }
+  ],
+  "dinner_preferences": [
+    "sushi", "tacos", "pasta", "pizza", "korean",
+    "burgers", "ramen", "indian", "thai", "stir fry"
+  ],
+  "schedule": {
+    "morning":  { "enabled": true, "time": "07:30" },
+    "homework": { "enabled": true, "time": "16:00", "weekdays_only": true },
+    "dinner":   { "enabled": true, "time": "17:30" },
+    "bedtime":  { "enabled": true, "time": "20:30" },
+    "plex":     { "enabled": false, "time": "20:00", "weekdays_only": true }
+  },
+  "board_art": { "enabled": true, "interval_hours": 3, "jitter_hours": 2 },
+  "random_messages": [
+    {
+      "id": "dad_joke",
+      "name": "Dad joke",
+      "enabled": true,
+      "interval_hours": 4,
+      "jitter_hours": 2,
+      "prompt": "Write a dad joke for a flip-board. Line 1-2: setup using very short words (max 15 chars per line). Line 3: punchline (max 15 chars). Choose jokes where every part fits in 15 characters — short words only."
+    },
+    {
+      "id": "creativity",
+      "name": "Creativity boost",
+      "enabled": true,
+      "interval_hours": 6,
+      "jitter_hours": 3,
+      "prompt": "Write an inspiring creativity or innovation message for a flip-board. Use very short words only. Each line max 15 chars. Examples: THINK DIFFERENT / CREATE TODAY / BUILD SOMETHING / STAY CURIOUS. Punchy and motivating."
+    },
+    {
+      "id": "fun_fact",
+      "name": "Fun fact",
+      "enabled": true,
+      "interval_hours": 5,
+      "jitter_hours": 2,
+      "prompt": "Write a surprising fun fact for a family flip-board. Keep it mind-blowing and brief. Short words only, max 15 chars per line."
+    }
+  ]
+}
