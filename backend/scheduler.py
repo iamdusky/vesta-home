@@ -120,7 +120,7 @@ def rebuild_jobs():
         scheduler.add_job(
             _from_prompt,
             IntervalTrigger(hours=interval_h, jitter=jitter_s, timezone=tz),
-            args=[entry["prompt"]],
+            args=[entry["prompt"], entry.get("window"), tz],
             id=f"family_random_{msg_id}", replace_existing=True,
             name=f"{entry.get('name', msg_id)} · every ~{interval_h}h",
         )
@@ -133,7 +133,11 @@ def rebuild_jobs():
     )
 
 
-async def _from_prompt(prompt: str):
+async def _from_prompt(prompt: str, window=None, tz=None):
+    if window:
+        now = datetime.now(tz or pytz.utc).strftime("%H:%M")
+        if not (window[0] <= now < window[1]):
+            return
     text = await messages.from_prompt(prompt)
     await board.enqueue(text)
 
