@@ -252,6 +252,8 @@
       resize: none;
       outline: none;
       line-height: 1.5;
+      height: 58px;
+      overflow: hidden;
     }
     .board-send-input:focus { border-color: var(--amber); }
     .board-send-btn {
@@ -639,7 +641,7 @@
       <div class="panel-section-label">Send to Board</div>
       <div class="board-send-row">
         <textarea id="board-send-input" class="board-send-input" rows="3"
-          placeholder="Type anything — the AI will format it for the board..."></textarea>
+          placeholder="Line 1&#10;Line 2&#10;Line 3"></textarea>
         <button id="board-send-btn" class="board-send-btn">SEND</button>
       </div>
       <div id="board-send-status" class="board-send-status"></div>
@@ -1219,6 +1221,13 @@ sendBtn.addEventListener('click', () => submitChat(inputEl.value));
   const boardSendInput  = document.getElementById('board-send-input');
   const boardSendBtn    = document.getElementById('board-send-btn');
   const boardSendStatus = document.getElementById('board-send-status');
+
+  boardSendInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const lines = boardSendInput.value.split('\n');
+      if (lines.length >= 3) e.preventDefault();
+    }
+  });
 
   boardSendBtn.addEventListener('click', async () => {
     const text = boardSendInput.value.trim();
