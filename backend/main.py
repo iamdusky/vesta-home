@@ -35,9 +35,11 @@ def _build_system_prompt() -> str:
         location_line = f"\nThe family is located in {location} ({tz}). Use this as the default location for weather unless the user specifies otherwise." if location else ""
     except Exception:
         location_line = ""
-    return f"""You are a concise, helpful assistant connected to a Vestaboard Note — a physical flip-board display with 15 columns and 3 rows (45 characters total).
+    return f"""You are a concise, helpful family assistant. You have access to tools for weather, time, and Plex.{location_line}
 
-When the user asks to send something to the board, keep the answer short and clear. You have access to tools for weather and time. Use them when relevant.{location_line}"""
+Respond naturally in plain conversational text. Do not use markdown, bullet points, or emoji.
+Do not describe, preview, or explain Vestaboard formatting — the UI handles that separately.
+Do not pretend to send anything to the board. If the user wants to send something, they will use the Send to Board button."""
 
 
 # ── App setup ──────────────────────────────────────────────────────────────

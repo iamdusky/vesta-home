@@ -238,6 +238,37 @@
     .schedule-time { font-size: 11px; color: var(--amber); letter-spacing: 0.04em; }
     .schedule-skip { font-size: 10px; color: var(--muted); margin-left: auto; margin-right: 8px; font-style: italic; }
 
+    /* Board send */
+    .board-send-row { display: flex; gap: 8px; align-items: flex-start; }
+    .board-send-input {
+      flex: 1;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 10px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+    }
+    .board-send-input:focus { border-color: var(--amber); }
+    .board-send-btn {
+      background: var(--amber);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-disp);
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      padding: 8px 14px;
+      cursor: pointer;
+      align-self: stretch;
+    }
+    .board-send-btn:disabled { opacity: 0.4; cursor: default; }
+    .board-send-status { font-size: 10px; color: var(--muted); margin-top: 6px; min-height: 14px; }
+
     /* Birthday list */
     .birthday-item {
       display: flex;
@@ -603,6 +634,16 @@
     <button class="panel-close" id="panel-close">✕</button>
   </div>
   <div class="panel-body">
+
+    <div class="panel-section">
+      <div class="panel-section-label">Send to Board</div>
+      <div class="board-send-row">
+        <textarea id="board-send-input" class="board-send-input" rows="3"
+          placeholder="Type anything — the AI will format it for the board..."></textarea>
+        <button id="board-send-btn" class="board-send-btn">SEND</button>
+      </div>
+      <div id="board-send-status" class="board-send-status"></div>
+    </div>
 
     <div class="panel-section">
       <div class="panel-section-label">Quick Send</div>
@@ -1173,6 +1214,40 @@ sendBtn.addEventListener('click', () => submitChat(inputEl.value));
       </div>`;
     }).join('');
   }
+
+  // ── Panel: Send to Board ────────────────────────────────────────────────
+  const boardSendInput  = document.getElementById('board-send-input');
+  const boardSendBtn    = document.getElementById('board-send-btn');
+  const boardSendStatus = document.getElementById('board-send-status');
+
+  boardSendBtn.addEventListener('click', async () => {
+    const text = boardSendInput.value.trim();
+    if (!text) return;
+    boardSendBtn.disabled = true;
+    boardSendStatus.textContent = 'Formatting...';
+    try {
+      const r = await fetch('/api/send-to-board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const job = await r.json();
+      boardSendStatus.textContent = 'Queued — sending to board...';
+      await pollJob(job.job_id, (pos) => {
+        boardSendStatus.textContent = pos > 0 ? `Queue position ${pos}` : 'Sending...';
+      });
+      boardSendStatus.textContent = 'Sent!';
+      boardSendInput.value = '';
+      setTimeout(() => { boardSendStatus.textContent = ''; }, 3000);
+    } catch (e) {
+      boardSendStatus.style.color = 'var(--red)';
+      boardSendStatus.textContent = e.message || 'Failed';
+      setTimeout(() => { boardSendStatus.style.color = ''; boardSendStatus.textContent = ''; }, 4000);
+    } finally {
+      boardSendBtn.disabled = false;
+    }
+  });
 
   // ── Quick send buttons ──────────────────────────────────────────────────
   document.querySelectorAll('.quick-btn').forEach(btn => {
