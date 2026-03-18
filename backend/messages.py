@@ -117,9 +117,13 @@ Be cheerful and brief. Vary the greeting style — sometimes include the day nam
 
 
 async def homework(family: dict) -> str:
-    names = [m["name"] for m in family["members"]]
-    kids  = names[2:] if len(names) > 2 else names  # rough guess: first 2 = parents
-    who   = " AND ".join(n.upper() for n in kids) if kids else "KIDS"
+    members = family["members"]
+    # Use homework flag if present; otherwise fall back to non-parents heuristic
+    if any("homework" in m for m in members):
+        kids = [m["name"] for m in members if m.get("homework", False)]
+    else:
+        kids = [m["name"] for m in members[2:]] if len(members) > 2 else [m["name"] for m in members]
+    who = " AND ".join(n.upper() for n in kids) if kids else "KIDS"
 
     prompt = f"""\
 Write a short homework reminder for a flip-board. Address: {who}.

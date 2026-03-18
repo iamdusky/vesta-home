@@ -6,7 +6,7 @@
     { "name": "Mom",  "birthday": "04-15" },
     { "name": "Dad",  "birthday": "10-01" },
     { "name": "Kid1", "birthday": "03-22" },
-    { "name": "Kid2", "birthday": "08-22" }
+    { "name": "Kid2", "birthday": "08-22", "homework": true }
   ],
   "dinner_preferences": [
     "sushi", "tacos", "pasta", "pizza", "korean",
