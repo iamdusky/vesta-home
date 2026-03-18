@@ -1,37 +1,36 @@
 services:
 
-  vllm:
+  # ── Ollama (default LLM — no GPU required) ────────────────────────────────
+  # Pulls and serves the model automatically on first run.
+  # To use a different model: MODEL=llama3.1 docker compose up
+  ollama:
     profiles: ["llm"]
-    image: vllm/vllm-openai:latest
-    runtime: nvidia
-    environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-      - NVIDIA_VISIBLE_DEVICES=all
+    image: ollama/ollama:latest
     volumes:
-      - hf-cache:/root/.cache/huggingface
+      - ollama-data:/root/.ollama
     ports:
-      - "8000:8000"
-    command: >
-      --model ${MODEL:-NousResearch/Hermes-4.3-36B}
-      --port 8000
-      --host 0.0.0.0
-      --max-model-len 8192
-      --enable-auto-tool-choice
-      --tool-call-parser hermes
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 10s
+      timeout: 5s
       retries: 10
-      start_period: 120s
+      start_period: 30s
     restart: unless-stopped
+
+  # Pulls the default model once Ollama is healthy
+  ollama-pull:
+    profiles: ["llm"]
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama", "pull", "${MODEL:-llama3.2}"]
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    restart: "no"
 
   backend:
     profiles: ["backend"]
@@ -39,16 +38,54 @@ services:
       context: .          # project root so Dockerfile can reach frontend/
       dockerfile: backend/Dockerfile
     environment:
-      - LLM_BASE_URL=http://vllm:8000/v1
-      - LLM_API_KEY=none
-      - MODEL=${MODEL:-/models/Hermes-4.3-36B-FP8}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://ollama:11434/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-none}
+      - MODEL=${MODEL:-llama3.2}
       - VESTABOARD_TOKEN=${VESTABOARD_TOKEN}
+      - VESTABOARD_API_URL=${VESTABOARD_API_URL:-https://rw.vestaboard.com/}
+      - PLEX_URL=${PLEX_URL:-}
+      - PLEX_TOKEN=${PLEX_TOKEN:-}
     ports:
       - "3000:3000"
-    depends_on:
-      vllm:
-        condition: service_healthy
     restart: unless-stopped
 
+  # ── vLLM (advanced — requires NVIDIA GPU) ─────────────────────────────────
+  # Uncomment and switch profiles if you want to run vLLM instead of Ollama.
+  # Set HF_TOKEN in .env if downloading from Hugging Face.
+  #
+  # vllm:
+  #   profiles: ["vllm"]
+  #   image: vllm/vllm-openai:latest
+  #   runtime: nvidia
+  #   environment:
+  #     - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #   volumes:
+  #     - hf-cache:/root/.cache/huggingface
+  #   ports:
+  #     - "8000:8000"
+  #   command: >
+  #     --model ${MODEL:-NousResearch/Hermes-4.3-36B}
+  #     --port 8000
+  #     --host 0.0.0.0
+  #     --max-model-len 8192
+  #     --enable-auto-tool-choice
+  #     --tool-call-parser hermes
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 10
+  #     start_period: 120s
+  #   restart: unless-stopped
+
 volumes:
-  hf-cache:
+  ollama-data:
+  # hf-cache:   # uncomment if using vLLM
