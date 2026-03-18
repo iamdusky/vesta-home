@@ -124,7 +124,8 @@ async def board_format(request: BoardFormatRequest):
 async def send_to_board(request: BoardRequest):
     if not VESTABOARD_TOKEN:
         raise HTTPException(status_code=500, detail="VESTABOARD_TOKEN not configured")
-    return await board.enqueue(request.text)
+    formatted = await messages.custom(request.text)
+    return {**(await board.enqueue(formatted)), "preview": formatted}
 
 
 # ── Quick send ─────────────────────────────────────────────────────────────

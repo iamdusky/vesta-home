@@ -41,7 +41,7 @@ class VestaboardClient:
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.post(self.api_url, headers=self._headers(), json={"text": text})
             r.raise_for_status()
-            return r.json()
+            return r.json() if r.content else {}
 
     async def send_characters(self, rows: list[list[int]],
                               strategy: str | None = None,
@@ -67,7 +67,7 @@ class VestaboardClient:
                 body = {"characters": rows}
             r = await client.post(self.api_url, headers=self._headers(), json=body)
             r.raise_for_status()
-            return r.json()
+            return r.json() if r.content else {}
 
     async def read(self) -> dict:
         """Read the current message on the board."""
