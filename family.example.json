@@ -17,8 +17,10 @@
     "homework": { "enabled": true, "time": "16:00", "weekdays_only": true },
     "dinner":   { "enabled": true, "time": "17:30" },
     "bedtime":  { "enabled": true, "time": "20:30" },
-    "plex":     { "enabled": false, "time": "20:00", "weekdays_only": true }
+    "plex":            { "enabled": false, "time": "20:00", "weekdays_only": true },
+    "word_of_the_day": { "enabled": true,  "time": "09:00", "colors": true }
   },
+  "word_of_the_day_language": "Tagalog",
   "board_art": { "enabled": true, "interval_hours": 3, "jitter_hours": 2 },
   "random_messages": [
     {

@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 
 import httpx
 
-PLEX_URL   = os.getenv("PLEX_URL", "http://localhost:32400")
-PLEX_TOKEN = os.getenv("PLEX_TOKEN", "")
+def _plex_url()   -> str: return os.getenv("PLEX_URL",   "")
+def _plex_token() -> str: return os.getenv("PLEX_TOKEN", "")
 
 # ── Tool definitions (OpenAI function-calling format) ──────────────────────
 TOOL_DEFINITIONS = [
@@ -183,7 +183,7 @@ async def _get_current_time() -> str:
 
 def _plex_headers() -> dict:
     return {
-        "X-Plex-Token": PLEX_TOKEN,
+        "X-Plex-Token": _plex_token(),
         "Accept": "application/json",
     }
 
@@ -192,8 +192,12 @@ def _extract_item(item: dict) -> dict:
     """Normalize a Plex metadata item into a clean dict."""
     media_type = item.get("type", "")
     if media_type == "episode":
-        title = f"{item.get('grandparentTitle', '')} — {item.get('title', '')}"
+        title    = f"{item.get('grandparentTitle', '')} — {item.get('title', '')}"
         subtitle = f"S{item.get('parentIndex', '?')}E{item.get('index', '?')}"
+    elif media_type == "season":
+        show     = item.get("parentTitle", item.get("grandparentTitle", ""))
+        title    = show if show else item.get("title", "Unknown")
+        subtitle = item.get("title", "")  # "Season 2"
     else:
         title    = item.get("title", "Unknown")
         subtitle = str(item.get("year", ""))
@@ -209,12 +213,12 @@ def _extract_item(item: dict) -> dict:
 
 
 async def _get_plex_recently_added(limit: int = 12, media_type: str = "all") -> str:
-    if not PLEX_TOKEN:
+    if not _plex_token():
         return json.dumps({"error": "PLEX_TOKEN not configured"})
 
     async with httpx.AsyncClient(timeout=8.0) as client:
         r = await client.get(
-            f"{PLEX_URL}/library/recentlyAdded",
+            f"{_plex_url()}/library/recentlyAdded",
             headers=_plex_headers(),
             params={"X-Plex-Container-Size": limit * 2},  # fetch extra to allow filtering
         )
@@ -236,12 +240,12 @@ async def _get_plex_recently_added(limit: int = 12, media_type: str = "all") -> 
 
 
 async def _get_plex_on_deck() -> str:
-    if not PLEX_TOKEN:
+    if not _plex_token():
         return json.dumps({"error": "PLEX_TOKEN not configured"})
 
     async with httpx.AsyncClient(timeout=8.0) as client:
         r = await client.get(
-            f"{PLEX_URL}/library/onDeck",
+            f"{_plex_url()}/library/onDeck",
             headers=_plex_headers(),
         )
         r.raise_for_status()
