@@ -102,6 +102,28 @@ def rebuild_jobs():
             name=f"Plex pick · {cfg['time']}{'  (weekdays)' if cfg.get('weekdays_only') else ''}",
         )
 
+    # Word of the day
+    cfg = schedule.get("word_of_the_day", {})
+    if cfg.get("enabled"):
+        language = data.get("word_of_the_day_language", "Tagalog")
+        colors   = cfg.get("colors", False)
+        scheduler.add_job(
+            _run, _cron(cfg["time"], tz),
+            args=[messages.word_of_the_day, language, colors],
+            id="family_word_of_the_day", replace_existing=True,
+            name=f"Word of the day · {cfg['time']}",
+        )
+
+    # Board art — fixed schedule (from schedule block)
+    cfg = schedule.get("board_art", {})
+    if cfg.get("enabled"):
+        scheduler.add_job(
+            _board_art,
+            _cron(cfg["time"], tz, weekdays_only=cfg.get("weekdays_only", False)),
+            id="family_board_art_scheduled", replace_existing=True,
+            name=f"Board art · {cfg['time']}{'  (weekdays)' if cfg.get('weekdays_only') else ''}",
+        )
+
     # Board art — random interval (special: uses character codes, no prompt)
     cfg = data.get("board_art", {})
     if cfg.get("enabled"):

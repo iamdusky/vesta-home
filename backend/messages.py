@@ -53,25 +53,33 @@ You may use these inline tags for colored tiles and symbols (each tag counts as 
 Regular letters and spaces work normally. Each line still max 15 cells total."""
 
 
+def _parse_cells(line: str) -> list[int]:
+    """Parse a line with inline tags into a list of character codes."""
+    line = line.upper().strip()
+    cells: list[int] = []
+    j = 0
+    while j < len(line):
+        matched = False
+        for tag, code in _TAG_MAP.items():
+            if line[j:j + len(tag)] == tag:
+                cells.append(code)
+                j += len(tag)
+                matched = True
+                break
+        if not matched:
+            cells.append(_CHAR_MAP.get(line[j], 0))
+            j += 1
+    return cells
+
+
 def build_chars(lines: list[str]) -> list[list[int]]:
-    """Convert up to 3 lines of text (with inline tags) to a 3×15 character code array."""
+    """Convert up to 3 lines of text (with inline tags) to a centered 3×15 character code array."""
     rows = []
     for i in range(3):
-        line = lines[i].upper() if i < len(lines) else ""
-        row: list[int] = []
-        j = 0
-        while j < len(line) and len(row) < 15:
-            matched = False
-            for tag, code in _TAG_MAP.items():
-                if line[j:j + len(tag)].upper() == tag:
-                    row.append(code)
-                    j += len(tag)
-                    matched = True
-                    break
-            if not matched:
-                row.append(_CHAR_MAP.get(line[j], 0))
-                j += 1
-        row += [0] * (15 - len(row))  # pad to 15
+        line  = lines[i] if i < len(lines) else ""
+        cells = _parse_cells(line)[:15]
+        pad   = (15 - len(cells)) // 2
+        row   = [0] * pad + cells + [0] * (15 - pad - len(cells))
         rows.append(row[:15])
     while len(rows) < 3:
         rows.append([0] * 15)
@@ -112,8 +120,19 @@ async def morning(family: dict) -> str:
     prompt = f"""\
 Write a warm good morning message for the {family['family_name']} family to display on a flip-board.
 Today is {day_name}. {bday_note} {weather_hint}
-Be cheerful and brief. Vary the greeting style — sometimes include the day name, sometimes a motivational phrase, sometimes just warmth.
-{BOARD_RULES}"""
+Be cheerful. Vary the style — sometimes the day name, sometimes motivation, sometimes just warmth.
+Use very short words only.
+
+{BOARD_RULES}
+
+Good examples:
+GOOD MORNING
+HAPPY FRIDAY
+MAKE IT COUNT
+---
+RISE AND SHINE
+GREAT DAY AHEAD
+YOU GOT THIS"""
     return await _generate(prompt)
 
 
@@ -161,10 +180,43 @@ async def bedtime(family: dict) -> str:
     time_str = schedule.get("time", "20:30")
 
     prompt = f"""\
-Write a gentle bedtime wind-down message for a family flip-board.
-Bedtime is around {time_str}. Keep it calm, warm, and brief.
-{BOARD_RULES}"""
+Write a gentle bedtime message for a family flip-board.
+Bedtime is around {time_str}. Keep it calm and warm. Use very short words only.
+Sometimes remind the family to do their bedtime routine (brush teeth, wash face, etc).
+Vary the style each time.
+
+{BOARD_RULES}
+
+Good examples (short words, fits the board):
+LIGHTS OUT
+SLEEP WELL
+GOOD NIGHT
+---
+BRUSH YOUR TEETH
+WASH YOUR FACE
+SWEET DREAMS
+---
+TIME FOR BED
+CLOSE YOUR EYES
+DREAM BIG"""
     return await _generate(prompt)
+
+
+async def word_of_the_day(language: str, colors: bool = False) -> str | list[list[int]]:
+    color_rules = f"\n{_BOARD_TAG_RULES}\nUse color tiles to highlight the word or add flair." if colors else ""
+    prompt = f"""\
+Pick a common, useful {language} word to teach a family today.
+Output exactly 3 lines:
+  Line 1: the language name (e.g. {language.upper()})
+  Line 2: the {language} word (romanized if non-Latin script, e.g. OHAYO not おはよ)
+  Line 3: the English translation
+
+Choose short words — each line must fit in 15 characters.
+Vary the word each time (greetings, food, family, emotions, nature, numbers).
+{color_rules}
+{BOARD_RULES}"""
+    raw = await _generate(prompt)
+    return build_chars(raw.splitlines()) if colors else raw
 
 
 async def birthday(member_name: str, family: dict) -> list[list[int]]:
@@ -275,12 +327,15 @@ def board_art() -> list[list[int]]:
     return random.choice(_ART_PATTERNS)()
 
 
-async def custom(text: str) -> str:
-    """Format arbitrary text for the board."""
+async def custom(text: str) -> list[list[int]]:
+    """Format arbitrary text for the board, with optional color tiles."""
     prompt = f"""\
 Format the following for a physical flip-board display with 3 rows of 15 characters each.
 Be concise — distill the key information.
+Use color tiles to make the message more expressive when appropriate.
+{_BOARD_TAG_RULES}
 {BOARD_RULES}
 
 Text: {text}"""
-    return await _generate(prompt)
+    raw = await _generate(prompt)
+    return build_chars(raw.splitlines())

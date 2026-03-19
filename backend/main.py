@@ -19,7 +19,7 @@ import scheduler as sched
 from tools import TOOL_DEFINITIONS, dispatch_tool, _get_plex_recently_added
 from vestaboard import VestaboardClient
 
-load_dotenv()
+load_dotenv(dotenv_path=pathlib.Path(__file__).parent.parent / ".env")
 
 VLLM_BASE_URL    = os.getenv("LLM_BASE_URL", os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1"))
 VLLM_API_KEY     = os.getenv("LLM_API_KEY",  os.getenv("VLLM_API_KEY",  "none"))
@@ -124,8 +124,8 @@ async def board_format(request: BoardFormatRequest):
 async def send_to_board(request: BoardRequest):
     if not VESTABOARD_TOKEN:
         raise HTTPException(status_code=500, detail="VESTABOARD_TOKEN not configured")
-    formatted = await messages.custom(request.text)
-    return {**(await board.enqueue(formatted)), "preview": formatted}
+    rows = await messages.custom(request.text)
+    return {**(await board.enqueue_characters(rows)), "preview": "[formatted]"}
 
 
 # ── Quick send ─────────────────────────────────────────────────────────────
@@ -145,12 +145,16 @@ async def quick_send(request: QuickSendRequest):
         return {**result, "preview": "[color pattern]"}
 
     handlers = {
-        "morning":  lambda: messages.morning(data),
-        "homework": lambda: messages.homework(data),
-        "dinner":   lambda: messages.dinner(data),
-        "bedtime":  lambda: messages.bedtime(data),
-        "birthday": lambda: messages.birthday(request.name, data),
-        "plex":     _plex_pick,
+        "morning":         lambda: messages.morning(data),
+        "homework":        lambda: messages.homework(data),
+        "dinner":          lambda: messages.dinner(data),
+        "bedtime":         lambda: messages.bedtime(data),
+        "birthday":        lambda: messages.birthday(request.name, data),
+        "plex":            _plex_pick,
+        "word_of_the_day": lambda: messages.word_of_the_day(
+            data.get("word_of_the_day_language", "Tagalog"),
+            data.get("schedule", {}).get("word_of_the_day", {}).get("colors", False),
+        ),
     }
 
     # Built-in handler
