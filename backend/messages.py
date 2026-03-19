@@ -270,16 +270,7 @@ async def from_prompt(user_prompt: str) -> str:
     prompt = f"""\
 {user_prompt}
 
-{BOARD_RULES}
-
-Good examples — notice every line fits within 15 chars:
-WHY CANT BIKES
-STAND ALONE
-THEYRE 2 TIRED
-
-I USED TO HATE
-FACIAL HAIR
-BUT IT GREW ON ME"""
+{BOARD_RULES}"""
     return await _generate(prompt)
 
 

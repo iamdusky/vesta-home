@@ -160,11 +160,27 @@ def rebuild_jobs():
 
 
 async def _from_prompt(prompt: str, window=None, tz=None):
+    now = datetime.now(tz or pytz.utc).strftime("%H:%M")
+
+    # Per-entry window check
     if window:
-        now = datetime.now(tz or pytz.utc).strftime("%H:%M")
         if not (window[0] <= now < window[1]):
             logger.info("Skipping random message — outside window %s–%s (now %s)", window[0], window[1], now)
             return
+
+    # Global quiet hours check
+    data  = fam.load()
+    quiet = data.get("quiet_hours")
+    if quiet and quiet.get("enabled"):
+        start, end = quiet["start"], quiet["end"]
+        if start <= end:
+            in_quiet = start <= now < end
+        else:  # overnight range e.g. 22:00–07:00
+            in_quiet = now >= start or now < end
+        if in_quiet:
+            logger.info("Skipping random message — quiet hours %s–%s (now %s)", start, end, now)
+            return
+
     text = await messages.from_prompt(prompt)
     await board.enqueue(text)
 
