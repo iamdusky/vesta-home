@@ -20,6 +20,11 @@
     "plex":            { "enabled": false, "time": "20:00", "weekdays_only": true },
     "word_of_the_day": { "enabled": true,  "time": "09:00", "colors": true }
   },
+  "weather_cities": [
+    { "code": "PHL", "city": "Philadelphia", "units": "F" },
+    { "code": "TYO", "city": "Tokyo",        "units": "C" },
+    { "code": "LA",  "city": "Los Angeles",  "units": "F" }
+  ],
   "word_of_the_day_language": "Tagalog",
   "quiet_hours": { "enabled": true, "start": "22:00", "end": "07:00" },
   "board_art": { "enabled": true, "interval_hours": 3, "jitter_hours": 2 },

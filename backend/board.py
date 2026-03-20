@@ -32,7 +32,7 @@ async def worker():
             if wait > 0:
                 await asyncio.sleep(wait)
             if "characters" in job:
-                await client.send_characters(job["characters"])
+                await client.send_characters(job["characters"], strategy="random")
             else:
                 await client.send(job["text"])
             _last_send = time.monotonic()
