@@ -263,7 +263,7 @@ async def plex_pick(recently_added: list[dict]) -> str:
     prompt = f"""\
 Format a Plex "Now Showing" board message for: {title}
 
-Line 1 must be exactly: NOW SHOWING
+Line 1 must be exactly: NOW ON PLEX
 Line 2 and 3: fit the title across 2 lines, max 15 characters each, ALL CAPS.
 If the title is short enough, put it all on line 2 and leave line 3 blank or add a fun word like TONIGHT or NEW.
 Output only 3 lines, nothing else."""
@@ -335,19 +335,35 @@ async def weather_board(cities: list[dict]) -> list[list[int]]:
         city  = cfg.get("city", code)
         units = cfg.get("units", "F").upper()
         try:
-            fmt = "u" if units == "F" else "m"
             async with httpx.AsyncClient(timeout=5.0) as client:
-                r = await client.get(f"https://wttr.in/{city}?format=j1&{fmt}")
-                r.raise_for_status()
-                data = r.json()
-            today = data["weather"][0]
-            high  = int(today["maxtempF"] if units == "F" else today["maxtempC"])
-            low   = int(today["mintempF"]  if units == "F" else today["mintempC"])
+                geo = await client.get(
+                    "https://geocoding-api.open-meteo.com/v1/search",
+                    params={"name": city, "count": 1, "language": "en", "format": "json"},
+                )
+                geo.raise_for_status()
+                result = geo.json().get("results", [])
+                if not result:
+                    raise ValueError(f"City not found: {city}")
+                lat, lon  = result[0]["latitude"], result[0]["longitude"]
+                temp_unit = "fahrenheit" if units == "F" else "celsius"
+                wx = await client.get(
+                    "https://api.open-meteo.com/v1/forecast",
+                    params={
+                        "latitude": lat, "longitude": lon,
+                        "daily": "temperature_2m_max,temperature_2m_min",
+                        "temperature_unit": temp_unit,
+                        "timezone": "auto", "forecast_days": 1,
+                    },
+                )
+                wx.raise_for_status()
+                data = wx.json()
+            high = round(data["daily"]["temperature_2m_max"][0])
+            low  = round(data["daily"]["temperature_2m_min"][0])
             hi_str = f"{high}{units}"[:4]
             lo_str = f"{low}{units}"[:4]
-            # 15 cells: CODE(3) sp(1) [R](1) sp(1) HIGH(≤4) sp(1) [B](1) sp(1) LOW(≤4)
             line = f"{code:<3} [R] {hi_str} [B] {lo_str}"
         except Exception as e:
+            import logging; logging.getLogger(__name__).error("Weather fetch failed for %s: %s", city, e)
             line = f"{code:<3} -- N/A"
         lines.append(line)
     while len(lines) < 3:
