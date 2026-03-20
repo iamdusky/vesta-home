@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import pathlib
 
@@ -20,6 +21,8 @@ from tools import TOOL_DEFINITIONS, dispatch_tool, _get_plex_recently_added
 from vestaboard import VestaboardClient
 
 load_dotenv(dotenv_path=pathlib.Path(__file__).parent.parent / ".env")
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 
 VLLM_BASE_URL    = os.getenv("LLM_BASE_URL", os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1"))
 VLLM_API_KEY     = os.getenv("LLM_API_KEY",  os.getenv("VLLM_API_KEY",  "none"))
@@ -151,6 +154,7 @@ async def quick_send(request: QuickSendRequest):
         "bedtime":         lambda: messages.bedtime(data),
         "birthday":        lambda: messages.birthday(request.name, data),
         "plex":            _plex_pick,
+        "weather":         lambda: messages.weather_board(data.get("weather_cities", [])),
         "word_of_the_day": lambda: messages.word_of_the_day(
             data.get("word_of_the_day_language", "Tagalog"),
             data.get("schedule", {}).get("word_of_the_day", {}).get("colors", False),

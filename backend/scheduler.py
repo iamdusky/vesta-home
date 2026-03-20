@@ -37,9 +37,14 @@ async def _run(msg_fn, *args):
         await board.enqueue(result)
 
 
-def _cron(time_str: str, tz, weekdays_only: bool = False) -> CronTrigger:
+def _cron(time_str: str, tz, weekdays_only: bool = False, days: list[str] | None = None) -> CronTrigger:
     hour, minute = map(int, time_str.split(":"))
-    dow = "mon-fri" if weekdays_only else "*"
+    if days:
+        dow = ",".join(days)
+    elif weekdays_only:
+        dow = "mon-fri"
+    else:
+        dow = "*"
     return CronTrigger(hour=hour, minute=minute, day_of_week=dow, timezone=tz)
 
 
@@ -57,7 +62,7 @@ def rebuild_jobs():
     cfg = schedule.get("morning", {})
     if cfg.get("enabled"):
         scheduler.add_job(
-            _run, _cron(cfg["time"], tz),
+            _run, _cron(cfg["time"], tz, days=cfg.get("days")),
             args=[messages.morning, data],
             id="family_morning", replace_existing=True,
             name=f"Good morning · {cfg['time']}",
@@ -67,7 +72,7 @@ def rebuild_jobs():
     cfg = schedule.get("homework", {})
     if cfg.get("enabled"):
         scheduler.add_job(
-            _run, _cron(cfg["time"], tz, weekdays_only=cfg.get("weekdays_only", True)),
+            _run, _cron(cfg["time"], tz, weekdays_only=cfg.get("weekdays_only", True), days=cfg.get("days")),
             args=[messages.homework, data],
             id="family_homework", replace_existing=True,
             name=f"Homework reminder · {cfg['time']} (weekdays)",
@@ -77,7 +82,7 @@ def rebuild_jobs():
     cfg = schedule.get("dinner", {})
     if cfg.get("enabled"):
         scheduler.add_job(
-            _run, _cron(cfg["time"], tz),
+            _run, _cron(cfg["time"], tz, days=cfg.get("days")),
             args=[messages.dinner, data],
             id="family_dinner", replace_existing=True,
             name=f"Dinner idea · {cfg['time']}",
@@ -87,7 +92,7 @@ def rebuild_jobs():
     cfg = schedule.get("bedtime", {})
     if cfg.get("enabled"):
         scheduler.add_job(
-            _run, _cron(cfg["time"], tz),
+            _run, _cron(cfg["time"], tz, days=cfg.get("days")),
             args=[messages.bedtime, data],
             id="family_bedtime", replace_existing=True,
             name=f"Bedtime · {cfg['time']}",
@@ -97,10 +102,22 @@ def rebuild_jobs():
     cfg = schedule.get("plex", {})
     if cfg.get("enabled"):
         scheduler.add_job(
-            _plex_recommendation, _cron(cfg["time"], tz, weekdays_only=cfg.get("weekdays_only", True)),
+            _plex_recommendation, _cron(cfg["time"], tz, weekdays_only=cfg.get("weekdays_only", True), days=cfg.get("days")),
             id="family_plex", replace_existing=True,
             name=f"Plex pick · {cfg['time']}{'  (weekdays)' if cfg.get('weekdays_only') else ''}",
         )
+
+    # Weather cities
+    cfg = schedule.get("weather", {})
+    if cfg.get("enabled"):
+        cities = data.get("weather_cities", [])
+        if cities:
+            scheduler.add_job(
+                _run, _cron(cfg["time"], tz, days=cfg.get("days")),
+                args=[messages.weather_board, cities],
+                id="family_weather", replace_existing=True,
+                name=f"Weather · {cfg['time']}",
+            )
 
     # Word of the day
     cfg = schedule.get("word_of_the_day", {})
@@ -108,7 +125,7 @@ def rebuild_jobs():
         language = data.get("word_of_the_day_language", "Tagalog")
         colors   = cfg.get("colors", False)
         scheduler.add_job(
-            _run, _cron(cfg["time"], tz),
+            _run, _cron(cfg["time"], tz, days=cfg.get("days")),
             args=[messages.word_of_the_day, language, colors],
             id="family_word_of_the_day", replace_existing=True,
             name=f"Word of the day · {cfg['time']}",
@@ -146,7 +163,7 @@ def rebuild_jobs():
         scheduler.add_job(
             _from_prompt,
             IntervalTrigger(hours=interval_h, jitter=jitter_s, timezone=tz),
-            args=[entry["prompt"], entry.get("window"), tz],
+            args=[entry["prompt"], entry.get("window"), tz, entry.get("days")],
             id=f"family_random_{msg_id}", replace_existing=True,
             name=f"{entry.get('name', msg_id)} · every ~{interval_h}h",
         )
@@ -159,13 +176,20 @@ def rebuild_jobs():
     )
 
 
-async def _from_prompt(prompt: str, window=None, tz=None):
-    now = datetime.now(tz or pytz.utc).strftime("%H:%M")
+async def _from_prompt(prompt: str, window=None, tz=None, days=None):
+    now     = datetime.now(tz or pytz.utc)
+    now_str = now.strftime("%H:%M")
+    dow     = now.strftime("%a").lower()  # mon, tue, wed...
+
+    # Per-entry day-of-week check
+    if days and dow not in [d.lower() for d in days]:
+        logger.info("Skipping random message — not in days %s (today %s)", days, dow)
+        return
 
     # Per-entry window check
     if window:
-        if not (window[0] <= now < window[1]):
-            logger.info("Skipping random message — outside window %s–%s (now %s)", window[0], window[1], now)
+        if not (window[0] <= now_str < window[1]):
+            logger.info("Skipping random message — outside window %s–%s (now %s)", window[0], window[1], now_str)
             return
 
     # Global quiet hours check
@@ -174,11 +198,11 @@ async def _from_prompt(prompt: str, window=None, tz=None):
     if quiet and quiet.get("enabled"):
         start, end = quiet["start"], quiet["end"]
         if start <= end:
-            in_quiet = start <= now < end
-        else:  # overnight range e.g. 22:00–07:00
-            in_quiet = now >= start or now < end
+            in_quiet = start <= now_str < end
+        else:
+            in_quiet = now_str >= start or now_str < end
         if in_quiet:
-            logger.info("Skipping random message — quiet hours %s–%s (now %s)", start, end, now)
+            logger.info("Skipping random message — quiet hours %s–%s (now %s)", start, end, now_str)
             return
 
     text = await messages.from_prompt(prompt)

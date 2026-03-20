@@ -6,6 +6,7 @@ import json
 import random
 from datetime import date
 
+import httpx
 from openai import AsyncOpenAI
 
 # Injected by main.py at startup
@@ -118,21 +119,25 @@ async def morning(family: dict) -> str:
     weather_hint = f"Location: {location}." if location else ""
 
     prompt = f"""\
-Write a warm good morning message for the {family['family_name']} family to display on a flip-board.
+Write a warm good morning message for the {family['family_name']} family on a flip-board.
 Today is {day_name}. {bday_note} {weather_hint}
-Be cheerful. Vary the style — sometimes the day name, sometimes motivation, sometimes just warmth.
-Use very short words only.
+Be cheerful. Vary the style. Use ONLY short common words — nothing longer than 8 letters.
+If referencing location, use a short nickname (PHILLY, PHL, or MTOWN — never the full city name).
 
 {BOARD_RULES}
 
-Good examples:
+Good examples (every word fits, nothing gets cut off):
 GOOD MORNING
-HAPPY FRIDAY
-MAKE IT COUNT
+HAPPY THURSDAY
+LET'S GO
 ---
 RISE AND SHINE
+HAPPY FRIDAY
+YOU GOT THIS
+---
+GO PHILLY GO
 GREAT DAY AHEAD
-YOU GOT THIS"""
+MAKE IT COUNT"""
     return await _generate(prompt)
 
 
@@ -316,6 +321,38 @@ _ART_PATTERNS = [
 def board_art() -> list[list[int]]:
     """Return a random 3×15 color pattern as character code rows."""
     return random.choice(_ART_PATTERNS)()
+
+
+async def weather_board(cities: list[dict]) -> list[list[int]]:
+    """Fetch today's high/low for up to 3 cities and format with color tiles.
+
+    Each row: CODE [R] HIGH [B] LOW  (exactly 15 cells)
+    Example:  PHL [R] 72F [B] 55F
+    """
+    lines = []
+    for cfg in cities[:3]:
+        code  = cfg.get("code", "???").upper()[:3]
+        city  = cfg.get("city", code)
+        units = cfg.get("units", "F").upper()
+        try:
+            fmt = "u" if units == "F" else "m"
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(f"https://wttr.in/{city}?format=j1&{fmt}")
+                r.raise_for_status()
+                data = r.json()
+            today = data["weather"][0]
+            high  = int(today["maxtempF"] if units == "F" else today["maxtempC"])
+            low   = int(today["mintempF"]  if units == "F" else today["mintempC"])
+            hi_str = f"{high}{units}"[:4]
+            lo_str = f"{low}{units}"[:4]
+            # 15 cells: CODE(3) sp(1) [R](1) sp(1) HIGH(≤4) sp(1) [B](1) sp(1) LOW(≤4)
+            line = f"{code:<3} [R] {hi_str} [B] {lo_str}"
+        except Exception as e:
+            line = f"{code:<3} -- N/A"
+        lines.append(line)
+    while len(lines) < 3:
+        lines.append("")
+    return build_chars(lines)
 
 
 async def custom(text: str) -> list[list[int]]:
