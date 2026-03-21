@@ -224,22 +224,28 @@ Vary the word each time (greetings, food, family, emotions, nature, numbers).
     return build_chars(raw.splitlines()) if colors else raw
 
 
+_BIRTHDAY_STYLES = [
+    "Row 1: hearts and yellow/orange tiles alternating. Row 2: HAPPY BIRTHDAY centered with red tiles on each side. Row 3: the name centered with violet tiles on each side.",
+    "Row 1: the name large and centered surrounded by heart tiles. Row 2: HAPPY BDAY with green tiles. Row 3: alternating rainbow color tiles — no text.",
+    "Row 1: alternating yellow and orange tiles — no text. Row 2: the name centered with exclamation marks, surrounded by hearts. Row 3: BEST DAY EVER with blue tiles on sides.",
+    "Row 1: HAPPY BIRTHDAY split across the row with heart tiles filling gaps. Row 2: the name in the center flanked by color tiles. Row 3: alternating red and orange tiles — no text.",
+    "Row 1: rainbow stripe of color tiles — no text. Row 2: BIG BIRTHDAY with violet tiles on each side. Row 3: the name centered with hearts on each side.",
+    "Row 1: the name centered surrounded by yellow tiles and hearts. Row 2: ITS YOUR DAY with orange tiles. Row 3: alternating green and blue tiles — no text.",
+]
+
+
 async def birthday(member_name: str, family: dict) -> list[list[int]]:
-    """Returns a decorated character array with colors and hearts."""
-    name = member_name.upper()[:13]  # leave room for hearts on sides
+    """Returns a decorated character array with colors and hearts. Style varies each call."""
+    name  = member_name.upper()[:13]
+    style = random.choice(_BIRTHDAY_STYLES)
 
     prompt = f"""\
-Write a birthday message for {name} using color tiles and hearts for a flip-board display.
+Write a birthday board message for {name}. Use this layout: {style}
 {_BOARD_TAG_RULES}
 
-Each line is exactly 15 cells. Use colored tiles and [H] hearts to fill unused space.
-
-Example for "ALEX":
-[Y][H][Y][H][Y][H][Y][H][Y][H][Y][H][Y][H][Y]
-[R][R][R]HAPPY[R][R][R][R][R][R][R][R][R][R]
-[O]ALEX[O][H][O][H][O][H][O][H][O][H][O]
-
-Now write one for {name}. Output only the 3 lines, nothing else."""
+Each line must be exactly 15 cells total (letters + tags each count as 1 cell).
+Fill unused cells with color tiles or [H] hearts — never leave raw blank space unless needed.
+Output only the 3 lines, nothing else."""
 
     raw   = await _generate(prompt)
     lines = raw.strip().splitlines()[:3]

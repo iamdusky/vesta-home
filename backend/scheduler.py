@@ -27,8 +27,15 @@ def _tz(family: dict) -> pytz.BaseTzInfo:
     return pytz.timezone(family.get("timezone", "UTC"))
 
 
+def _is_birthday_active() -> bool:
+    return bool(fam.birthdays_today(fam.load()))
+
+
 async def _run(msg_fn, *args):
     """Generate a message and enqueue it on the board. Handles text or character arrays."""
+    if _is_birthday_active():
+        logger.info("Skipping %s — birthday mode active", msg_fn.__name__)
+        return
     logger.info("Scheduler firing: %s", msg_fn.__name__)
     result = await msg_fn(*args)
     if isinstance(result, list):
@@ -168,15 +175,21 @@ def rebuild_jobs():
             name=f"{entry.get('name', msg_id)} · every ~{interval_h}h",
         )
 
-    # Birthday check — runs at midnight daily
+    # Birthday messages — interval throughout the day (07:00–21:30 enforced inside handler)
+    bday_cfg   = schedule.get("birthday", {})
+    interval_h = bday_cfg.get("interval_hours", 2)
     scheduler.add_job(
-        _check_birthdays, CronTrigger(hour=0, minute=0, timezone=tz),
+        _check_birthdays,
+        IntervalTrigger(hours=interval_h, jitter=300, timezone=tz),
         id="family_birthday_check", replace_existing=True,
-        name="Birthday check · 00:00",
+        name=f"Birthday check · every ~{interval_h}h",
     )
 
 
 async def _from_prompt(prompt: str, window=None, tz=None, days=None):
+    if _is_birthday_active():
+        logger.info("Skipping random message — birthday mode active")
+        return
     now     = datetime.now(tz or pytz.utc)
     now_str = now.strftime("%H:%M")
     dow     = now.strftime("%a").lower()  # mon, tue, wed...
@@ -210,11 +223,17 @@ async def _from_prompt(prompt: str, window=None, tz=None, days=None):
 
 
 async def _board_art():
+    if _is_birthday_active():
+        logger.info("Skipping board art — birthday mode active")
+        return
     rows = messages.board_art()
     await board.enqueue_characters(rows)
 
 
 async def _plex_recommendation():
+    if _is_birthday_active():
+        logger.info("Skipping Plex recommendation — birthday mode active")
+        return
     import json as _json
     raw   = await _get_plex_recently_added(limit=5)
     items = _json.loads(raw).get("recently_added", [])
@@ -223,11 +242,26 @@ async def _plex_recommendation():
 
 
 async def _check_birthdays():
-    data     = fam.load()
+    data = fam.load()
+    tz   = _tz(data)
+    now  = datetime.now(tz)
+    now_str = now.strftime("%H:%M")
+
+    bday_cfg = data.get("schedule", {}).get("birthday", {})
+    start    = bday_cfg.get("start", "07:00")
+    end      = bday_cfg.get("end", "21:30")
+    if not (start <= now_str < end):
+        logger.info("Birthday check — outside window %s–%s (now %s)", start, end, now_str)
+        return
+
     today_bdays = fam.birthdays_today(data)
+    if not today_bdays:
+        return
+
+    logger.info("Birthday mode active: %s", today_bdays)
     for name in today_bdays:
-        text = await messages.birthday(name, data)
-        await board.enqueue(text)
+        chars = await messages.birthday(name, data)
+        await board.enqueue_characters(chars)
 
 
 def upcoming(limit: int = 8) -> list[dict]:
