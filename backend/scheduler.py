@@ -226,6 +226,16 @@ async def _board_art():
     if _is_birthday_active():
         logger.info("Skipping board art — birthday mode active")
         return
+    data  = fam.load()
+    quiet = data.get("quiet_hours")
+    if quiet and quiet.get("enabled"):
+        tz      = _tz(data)
+        now_str = datetime.now(tz).strftime("%H:%M")
+        start, end = quiet["start"], quiet["end"]
+        in_quiet = (now_str >= start or now_str < end) if start > end else (start <= now_str < end)
+        if in_quiet:
+            logger.info("Skipping board art — quiet hours %s–%s (now %s)", start, end, now_str)
+            return
     rows = messages.board_art()
     await board.enqueue_characters(rows)
 
