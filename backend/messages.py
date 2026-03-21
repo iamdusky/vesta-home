@@ -15,6 +15,7 @@ model: str = ""
 
 BOARD_RULES = """\
 Output EXACTLY 3 lines. Each line is AT MOST 15 characters. ALL CAPS.
+Aim for 2-3 short words per line — never combine phrases that would exceed 15 chars.
 No punctuation except spaces, hyphens, and exclamation marks.
 Output only the 3 lines — no labels, quotes, or explanation.
 Do not add leading or trailing spaces — write only the content.
