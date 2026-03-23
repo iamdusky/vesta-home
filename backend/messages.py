@@ -20,6 +20,9 @@ No punctuation except spaces, hyphens, and exclamation marks.
 Output only the 3 lines — no labels, quotes, or explanation.
 Do not add leading or trailing spaces — write only the content.
 
+You may abbreviate to fit: BDAY BIRTHDAY, TMRW TOMORROW, TONITE TONIGHT,
+CONGRATS CONGRATULATIONS, HW HOMEWORK, YR YEAR, W/ WITH, GM GOOD MORNING, GN GOOD NIGHT.
+
 The ruler below shows exactly 15 characters — never exceed it:
 |||||||||||||||
 123456789012345"""
@@ -95,15 +98,16 @@ def _enforce(raw: str) -> str:
     return "\n".join(line.upper()[:15] for line in lines)
 
 
-async def _generate(prompt: str) -> str:
+async def _generate(prompt: str, raw: bool = False) -> str:
     resp = await llm_client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.8,
-        max_tokens=64,
+        max_tokens=128,
         stream=False,
     )
-    return _enforce(resp.choices[0].message.content)
+    text = resp.choices[0].message.content
+    return text.strip() if raw else _enforce(text)
 
 
 async def morning(family: dict) -> str:
@@ -221,8 +225,8 @@ Choose short words — each line must fit in 15 characters.
 Vary the word each time (greetings, food, family, emotions, nature, numbers).
 {color_rules}
 {BOARD_RULES}"""
-    raw = await _generate(prompt)
-    return build_chars(raw.splitlines()) if colors else raw
+    out = await _generate(prompt, raw=colors)
+    return build_chars(out.splitlines()) if colors else out
 
 
 _BIRTHDAY_STYLES = [
@@ -248,8 +252,8 @@ Each line must be exactly 15 cells total (letters + tags each count as 1 cell).
 Fill unused cells with color tiles or [H] hearts — never leave raw blank space unless needed.
 Output only the 3 lines, nothing else."""
 
-    raw   = await _generate(prompt)
-    lines = raw.strip().splitlines()[:3]
+    out   = await _generate(prompt, raw=True)
+    lines = out.strip().splitlines()[:3]
     while len(lines) < 3:
         lines.append("")
     return build_chars(lines)
@@ -388,5 +392,5 @@ Use color tiles to make the message more expressive when appropriate.
 {BOARD_RULES}
 
 Text: {text}"""
-    raw = await _generate(prompt)
-    return build_chars(raw.splitlines())
+    out = await _generate(prompt, raw=True)
+    return build_chars(out.splitlines())
